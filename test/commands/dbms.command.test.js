@@ -286,5 +286,63 @@ describe('DBMS Command Unit Tests', () => {
                 }).toThrow('Updating values can\'t be empty');
             });
         });
-    })
+    });
+    describe('Multiple operations', () => {
+        beforeEach(() => {
+            original = {
+                _id: 1, name: 'someName', posts: []
+            };
+        });
+        it('Doing multiple inserts on multiple deeps', () => {
+            mutations = {
+                    posts:[{comments:[]}, {_id:1, comments:[{title:'commenting'}]}]
+            };
+
+            const response = commander.execute('generateUpdateStatement', original, mutations);
+
+            expect(response.original.posts).toHaveLength(0);
+            expect(response.updated.posts).toHaveLength(1);
+            expect(response.updated.posts[0]).toHaveProperty('comments');
+            expect(response.updated.posts[0].comments[0]).toHaveProperty('title');
+            expect(response.traceAsString).toHaveLength(2);
+            expect(response.traceAsString).toStrictEqual([
+                '{"$ADD":{"posts":{"comments":[{"_id":1,"title":"commenting"}]}}}',
+                '{"$ADD":{"posts.1.comments":{"title":"commenting"}}}'
+            ]);
+        });
+
+        it('Doing multiple operations on multiple deeps', () => {
+            mutations = {
+                posts:[
+                    {comments:[], name:'myFirstPost'},
+                    {_id:1, comments:[{title:'commenting'}]},
+                    {_id:1, comments:[{_id:1, title:'newTitle'}]},
+                    {comments:[], name:'mySecondPost'},
+                    {_id:2, name:'NewNameOnSecondPost'},
+                    {_id:2, comments:[{title:'CommentOnSecondPost'}]},
+                    {_id:2, comments:[{_id:1, title:'UpdatingCommentOnSecondPost'}]},
+                    {comments:[], name:'myThirdPost'},
+                    {_id:3, comments:[{title:'commentOnThirdPost'}]},
+                    {_id:3, comments:[{_id:1, _delete:true}]},
+                    ]
+            };
+
+            const response = commander.execute('generateUpdateStatement', original, mutations);
+            expect(response.original.posts).toHaveLength(0);
+            expect(response.updated.posts).toHaveLength(3);
+            expect(response.traceAsString).toHaveLength(10);
+            expect(response.traceAsString).toStrictEqual(    [
+                '{"$ADD":{"posts":{"comments":[{"_id":1,"title":"newTitle"}],"name":"myFirstPost"}}}',
+                '{"$ADD":{"posts.1.comments":{"title":"commenting"}}}',
+                '{"$UPDATE":{"posts.1.comments.1":{"_id":1,"title":"newTitle"}}}',
+                '{"$ADD":{"posts":{"comments":[{"_id":1,"title":"UpdatingCommentOnSecondPost"}],"name":"mySecondPost"}}}',
+                '{"$UPDATE":{"posts.2":{"_id":2,"name":"NewNameOnSecondPost"}}}',
+                '{"$ADD":{"posts.2.comments":{"title":"CommentOnSecondPost"}}}',
+                '{"$UPDATE":{"posts.2.comments.1":{"_id":1,"title":"UpdatingCommentOnSecondPost"}}}',
+                '{"$ADD":{"posts":{"comments":[null],"name":"myThirdPost"}}}',
+                '{"$ADD":{"posts.3.comments":{"title":"commentOnThirdPost"}}}',
+                '{"$DELETE":{"posts.3.comments.1":true}}'
+            ]);
+        });
+    });
 });

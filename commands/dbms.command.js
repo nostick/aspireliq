@@ -24,9 +24,7 @@ module.exports = (function () {
     function recursiveProcess(operation, baseKey, originalDocument, dbmsResponse) {
         let currentPath = baseKey;
         _.forEach(operation, (op) => {
-            if (op._id) {
-                currentPath += `.${op._id}`
-            }
+            if (op._id) currentPath += `.${op._id}`;
 
             const childKey = _.findKey(op, op => _.isArray(op) && !_.isEmpty(op));
 
