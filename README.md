@@ -62,6 +62,9 @@ Those are the only 2 parameters accepted and they are required, otherwise you'll
 
 There 3 operations
 
+NOTE: All these operations works the same way on deeper nodes!! so you can use same operations for
+deeper nodes
+
 * $ADD
 
 ```json
